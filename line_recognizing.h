@@ -3,6 +3,7 @@
 #include<opencv2/opencv.hpp>
 #include<queue>
 #include<vector>
+#include"boundary.h"
 
 /// <summary>
 /// Возвращает квадрат евклидова
@@ -34,7 +35,7 @@ int len(cv::Vec3b x, cv::Vec3b y);
 /// <returns>
 /// Цвет границы лабиринта.
 /// </returns>
-cv::Vec3b get_side_color(cv::Point start, cv::Mat& grim, cv::Mat& clim);
+cv::Vec3b get_side_color(cv::Mat& grim, cv::Mat& clim, std::vector<Segment>& boundary);
 
 /// <summary>
 /// Находит начало линии ребенка на лабиринте.
