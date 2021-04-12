@@ -18,7 +18,7 @@ bool comp(cv::Vec3b a, cv::Vec3b b) {
 
 	if (s_a < white_s_max && v_a > white_v_min && s_b < white_s_max && v_b > white_v_min)
 		return true;
-	else if ( v_a < black_v_max && v_b < black_v_max)
+	else if (v_a < black_v_max && v_b < black_v_max)
 		return true;
 	else if (!((s_a < white_s_max && v_a > white_v_min) || (s_b < white_s_max && v_b > white_v_min) || (v_a < black_v_max) || (v_b < black_v_max)))
 		return std::min(std::abs(h_a - h_b), 180 - std::abs(h_a - h_b)) < 40;
@@ -214,8 +214,19 @@ cv::Vec3b get_floor_color(cv::Point start, cv::Mat& grim, cv::Mat& clim) {
 	}
 }
 
-
-cv::Point get_end_of_line(cv::Point start, cv::Mat& clim, int shift) {
+/// <summary>
+/// Находит точку концы линии пользователя
+/// </summary>
+/// <param name="start">
+/// Точка начала линии пользователя
+/// </param>
+/// <param name="clim">
+/// Цветное изображение
+/// </param>
+/// <returns>
+/// Точка конца линии пользователя
+/// </returns>
+cv::Point get_end_of_line(cv::Point start, cv::Mat& clim) {
 	int x_max = start.x, y_max = start.y;
 
 	for (int i = 0; i < clim.cols; i++)
@@ -234,12 +245,12 @@ cv::Point get_end_of_line(cv::Point start, cv::Mat& clim, int shift) {
 			y_max = p.y;
 		}
 		auto cur_col = [&clim](int x, int y) {return clim.at<cv::Vec3b>({ x,y }); };
-		if (p.x - 1 >= 0 && d[p.x-1][p.y] ==-1 && comp(cur_col(p.x-1, p.y), line_col)){
+		if (p.x - 1 >= 0 && d[p.x - 1][p.y] == -1 && comp(cur_col(p.x - 1, p.y), line_col)) {
 			q.push({ p.x - 1, p.y });
 			d[p.x - 1][p.y] = d[p.x][p.y] + 1;
 		}
 		if (p.y - 1 >= 0 && d[p.x][p.y - 1] == -1 && comp(cur_col(p.x, p.y - 1), line_col)) {
-			q.push({ p.x, p.y - 1});
+			q.push({ p.x, p.y - 1 });
 			d[p.x][p.y - 1] = d[p.x][p.y] + 1;
 		}
 		if (p.x + 1 < clim.cols && d[p.x + 1][p.y] == -1 && comp(cur_col(p.x + 1, p.y), line_col)) {
@@ -247,18 +258,88 @@ cv::Point get_end_of_line(cv::Point start, cv::Mat& clim, int shift) {
 			d[p.x + 1][p.y] = d[p.x][p.y] + 1;
 		}
 		if (p.y + 1 < clim.rows && d[p.x][p.y + 1] == -1 && comp(cur_col(p.x, p.y + 1), line_col)) {
-			q.push({ p.x, p.y + 1});
+			q.push({ p.x, p.y + 1 });
 			d[p.x][p.y + 1] = d[p.x][p.y] + 1;
 		}
 	}
 	return { x_max, y_max };
 }
 
-std::vector<cv::Point> GetTrace(cv::Point start, cv::Point end, cv::Mat& clim, cv::Mat& grim, int shift) {
+/// <summary>
+/// Рачитывает среднюю величину прохода в
+/// лабиринте.
+/// </summary>
+/// <param name="line_color">
+/// Цвет линии пользователя
+/// </param>
+/// <param name="clim">
+/// Цветная матрица лабиринта
+/// </param>
+/// <param name="grim">
+/// Черно-белая матрица лабиринта
+/// </param>
+/// <returns>
+/// Средняя величина прохода
+/// </returns>
+int get_gap(cv::Vec3b line_color, cv::Mat& clim, cv::Mat& grim) {
+	long long cnt = 0;
+	long long sum = 0;
+
+	int x = 0, y = 0;
+	bool fl = false;
+	while (y < clim.rows) {
+		x = 0;
+		while (x < clim.cols) {
+			while (x < clim.cols && (int)grim.at<uchar>({ x,y }) == 0 && !comp(clim.at<cv::Vec3b>({ x,y }), line_color)) {
+				fl = true;
+				x++;
+			}
+			if (fl && x != clim.cols) {
+				int tmp = 0;
+				while (x < clim.cols && ((int)grim.at<uchar>({ x,y }) == 255 || comp(clim.at<cv::Vec3b>({ x,y }), line_color))) {
+					tmp++;
+					x++;
+				}
+				if (x != clim.cols) {
+					cnt++;
+					sum += tmp;
+				}
+				fl = false;
+			}
+			else {
+				while (x < clim.cols && ((int)grim.at<uchar>({ x,y }) == 255 || comp(clim.at<cv::Vec3b>({ x,y }), line_color)))
+					x++;
+			}
+		}
+		y++;
+	}
+	return sum / cnt;
+}
+
+/// <summary>
+/// Расчитывает путь до конца лабиринта
+/// </summary>
+/// <param name="start">
+/// Точка старта
+/// </param>
+/// <param name="end">
+/// Точка конца лабиринта
+/// </param>
+/// <param name="clim">
+/// Цветная матрица лабиринта
+/// </param>
+/// <param name="grim">
+/// Черно-белая матрица лабиринта
+/// </param>
+/// <returns>
+/// Вектор точек пути от старта до конца
+/// лабиринта
+/// </returns>
+std::vector<cv::Point> GetTrace(cv::Point start, cv::Point end, cv::Mat& clim, cv::Mat& grim) {
 	std::vector<cv::Point> result;
 	cv::Vec3d line_color = clim.at<cv::Vec3b>(start);
-	for (int i = 0; i < clim.cols;i++) {
-		for (int j = 0; j < clim.rows;j++) {
+	for (int i = 0; i < clim.cols; i++) {
+		for (int j = 0; j < clim.rows; j++) {
 			d[i][j] = -1;
 		}
 	}
@@ -268,20 +349,51 @@ std::vector<cv::Point> GetTrace(cv::Point start, cv::Point end, cv::Mat& clim, c
 
 	auto cur_col = [&clim](int x, int y) {return clim.at<cv::Vec3b>({ x,y }); };
 
+	int gap = std::max(get_gap(line_color, clim, grim) / 5, 2);
+
 	while (!q.empty()) {
 		cv::Point p = q.front();
 		if (p == end)
 			break;
 		q.pop();
-		if (p.x - 1 >= 0 && d[p.x - 1][p.y] == -1 && ((int)grim.at<uchar>({p.x -1, p.y}) == 255 || comp(cur_col(p.x-1,p.y), line_color))) {
+		if (d[p.x][p.y] < 0)
+			continue;
+
+		
+
+		int i = 1;
+		while (i < gap) {
+			if (p.x - i >= 0 && cv::Point{ p.x - i, p.y } == end
+				|| p.y - i >= 0 && cv::Point(p.x, p.y - i) == end
+				|| p.y + i <= clim.rows && cv::Point(p.x, p.y + i) == end
+				|| p.x + i <= clim.cols && cv::Point(p.x + i, p.y) == end) {
+				i = gap;
+				break;
+			}
+
+			if (!(p.x - i >= 0 && ((int)grim.at<uchar>({ p.x - i, p.y }) == 255 || comp(cur_col(p.x - i, p.y), line_color))))
+				break;
+			if (!(p.y - i >= 0 && ((int)grim.at<uchar>({ p.x, p.y - i }) == 255 || comp(cur_col(p.x, p.y - i), line_color))))
+				break;
+			if (!(p.y + i < clim.rows && ((int)grim.at<uchar>({ p.x, p.y + i }) == 255 || comp(cur_col(p.x, p.y + i), line_color))))
+				break;
+			if (!(p.x + i < clim.cols && ((int)grim.at<uchar>({ p.x + i, p.y }) == 255 || comp(cur_col(p.x + i, p.y), line_color))))
+				break;
+			i++;
+		}
+		if (i != gap)
+			continue;
+
+
+		if (p.x - 1 >= 0 && d[p.x - 1][p.y] == -1 && ((int)grim.at<uchar>({ p.x - 1, p.y }) == 255 || comp(cur_col(p.x - 1, p.y), line_color))) {
 			d[p.x - 1][p.y] = d[p.x][p.y] + 1;
 			q.push({ p.x - 1, p.y });
 		}
-		if (p.y  - 1 >= 0 && d[p.x][p.y - 1] == -1 && ((int)grim.at<uchar>({ p.x, p.y - 1}) == 255 || comp(cur_col(p.x, p.y - 1), line_color))) {
+		if (p.y - 1 >= 0 && d[p.x][p.y - 1] == -1 && ((int)grim.at<uchar>({ p.x, p.y - 1 }) == 255 || comp(cur_col(p.x, p.y - 1), line_color))) {
 			d[p.x][p.y - 1] = d[p.x][p.y] + 1;
-			q.push({ p.x, p.y - 1});
+			q.push({ p.x, p.y - 1 });
 		}
-		if (p.y + 1 < clim.rows && d[p.x][p.y + 1] == -1 && ((int)grim.at<uchar>({ p.x, p.y  + 1}) == 255 || comp(cur_col(p.x, p.y + 1), line_color))) {
+		if (p.y + 1 < clim.rows && d[p.x][p.y + 1] == -1 && ((int)grim.at<uchar>({ p.x, p.y + 1 }) == 255 || comp(cur_col(p.x, p.y + 1), line_color))) {
 			d[p.x][p.y + 1] = d[p.x][p.y] + 1;
 			q.push({ p.x, p.y + 1 });
 		}
@@ -291,21 +403,68 @@ std::vector<cv::Point> GetTrace(cv::Point start, cv::Point end, cv::Mat& clim, c
 		}
 	}
 
-
-
 	cv::Point cur = end;
 	if (d[cur.x][cur.y] == -1)
 		throw std::runtime_error("");
+	int dir = -1;
+
+	auto left = [&cur,&dir] {
+		if (cur.x - 1 >= 0 && d[cur.x - 1][cur.y] + 1 == d[cur.x][cur.y]) {
+			cur = { cur.x - 1, cur.y };
+			dir = 0;
+			return true;
+		}
+		return false;
+	};
+	auto up = [&cur,&dir] {
+		if (cur.y - 1 >= 0 && d[cur.x][cur.y - 1] + 1 == d[cur.x][cur.y]) {
+			cur = { cur.x, cur.y - 1 };
+			dir = 1;
+			return true;
+		}
+		return false;
+	};
+	auto right = [&dir ,&cur,&clim] {
+		if (cur.x + 1 < clim.cols && d[cur.x + 1][cur.y] + 1 == d[cur.x][cur.y]) {
+			cur = { cur.x + 1, cur.y };
+			dir = 2;
+			return true;
+		}
+		return false;
+		};
+	auto down = [&dir, &cur, &clim] {
+		if (cur.y + 1 < clim.rows && d[cur.x][cur.y + 1] + 1 == d[cur.x][cur.y]) {
+			cur = { cur.x, cur.y + 1 };
+			dir = 3;
+			return true;
+		}
+		return false;
+		};
+	std::vector<std::function<bool()>> v = { left, up, right, down };
+
 	while (d[cur.x][cur.y] != 0) {
 		result.push_back(cur);
-		if (cur.x - 1 >= 0 && d[cur.x - 1][cur.y] + 1 == d[cur.x][cur.y])
-			cur = { cur.x - 1, cur.y };
-		else if (cur.y - 1 >= 0 && d[cur.x][cur.y - 1] + 1 == d[cur.x][cur.y])
-			cur = { cur.x, cur.y - 1 };
-		else if(cur.x + 1 < clim.cols && d[cur.x + 1][cur.y] + 1 == d[cur.x][cur.y])
-			cur = { cur.x + 1, cur.y };
-		else if (cur.y + 1 < clim.rows && d[cur.x ][cur.y + 1] + 1 == d[cur.x][cur.y])
-			cur = { cur.x, cur.y + 1};
+
+		if (dir == -1) {
+			int i = 0;
+			while (i < 4 && !(v[i]()))i++;
+		}
+		else {
+			int i = 0;
+			bool fl = false;
+			while (i < 4) {
+				if (dir != i) {
+					if (v[i]()) {
+						fl = true;
+						break;
+					}
+				}
+				i++;
+			}
+			if (!fl)
+				v[dir]();
+		}
+
 	}
 
 	return result;

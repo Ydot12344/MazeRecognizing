@@ -77,6 +77,37 @@ cv::Point find_line(cv::Mat& color_img, cv::Mat& gray_img, cv::Point start, cv::
 /// </returns>
 cv::Vec3b get_floor_color(cv::Point start, cv::Mat& grim, cv::Mat& clim);
 
-cv::Point get_end_of_line(cv::Point start, cv::Mat& clim, int shift);
+/// <summary>
+/// Находит точку концы линии пользователя
+/// </summary>
+/// <param name="start">
+/// Точка начала линии пользователя
+/// </param>
+/// <param name="clim">
+/// Цветное изображение
+/// </param>
+/// <returns>
+/// Точка конца линии пользователя
+/// </returns>
+cv::Point get_end_of_line(cv::Point start, cv::Mat& clim);
 
-std::vector<cv::Point> GetTrace(cv::Point start, cv::Point end, cv::Mat& clim, cv::Mat& grim, int shift);
+/// <summary>
+/// Расчитывает путь до конца лабиринта
+/// </summary>
+/// <param name="start">
+/// Точка старта
+/// </param>
+/// <param name="end">
+/// Точка конца лабиринта
+/// </param>
+/// <param name="clim">
+/// Цветная матрица лабиринта
+/// </param>
+/// <param name="grim">
+/// Черно-белая матрица лабиринта
+/// </param>
+/// <returns>
+/// Вектор точек пути от старта до конца
+/// лабиринта
+/// </returns>
+std::vector<cv::Point> GetTrace(cv::Point start, cv::Point end, cv::Mat& clim, cv::Mat& grim);

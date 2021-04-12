@@ -50,10 +50,7 @@ int main()
 
 				cv::Point start_line = find_line(img_hsv, picture, start, floor_color, side_color, 15000, 15000);
 
-				cv::Point end_line = get_end_of_line(start_line, img_hsv, 5000);
-
-				//cv::circle(picture, start_line, 3, 0, 3);
-				//cv::circle(picture, end_line, 3, 0, 3);
+				cv::Point end_line = get_end_of_line(start_line, img_hsv);
 
 				for (const auto& c : boundary) {
 					cv::line(picture, { (int)c.source().x(), (int)c.source().y() }, { (int)c.target().x(), (int)c.target().y() }, { 0,255,0 }, 10);
@@ -65,7 +62,7 @@ int main()
 				std::cout << "End_line: " << end_line.x << " " << end_line.y << '\n';
 				std::cout << '\n';
 
-				std::vector<cv::Point> trace = GetTrace(end_line, ends[i - 1], img_hsv, picture, 5000);
+				std::vector<cv::Point> trace = GetTrace(end_line, ends[i - 1], img_hsv, picture);
 
 				for (int i = 0; i < trace.size() - 1; i++)
 					cv::line(img, trace[i], trace[i + 1], { 0,255,0 }, 2);
