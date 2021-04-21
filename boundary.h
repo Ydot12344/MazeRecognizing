@@ -1,49 +1,45 @@
 #pragma once
 
-#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
-#include <CGAL/Alpha_shape_2.h>
-#include <CGAL/Alpha_shape_vertex_base_2.h>
-#include <CGAL/Alpha_shape_face_base_2.h>
-#include <CGAL/Delaunay_triangulation_2.h>
-#include <CGAL/algorithm.h>
-#include <CGAL/assertions.h>
 #include<opencv2/opencv.hpp>
+#include<unordered_set>
 
-typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
-typedef K::FT                                                FT;
-typedef K::Point_2                                           Point;
-typedef K::Segment_2                                         Segment;
-typedef CGAL::Alpha_shape_vertex_base_2<K>                   Vb;
-typedef CGAL::Alpha_shape_face_base_2<K>                     Fb;
-typedef CGAL::Triangulation_data_structure_2<Vb, Fb>          Tds;
-typedef CGAL::Delaunay_triangulation_2<K, Tds>                Triangulation_2;
-typedef CGAL::Alpha_shape_2<Triangulation_2>                 Alpha_shape_2;
-typedef Alpha_shape_2::Alpha_shape_edges_iterator            Alpha_shape_edges_iterator;
+struct Segment {
+    cv::Point source;
+    cv::Point destination;
+    bool operator==(const Segment& a) const {
+        return source == a.source && destination == a.destination;
+    }
+};
+
+
+
+struct SegmentHash {
+    std::hash<int> int_hash;
+    std::size_t operator()(const Segment& seg) const {
+        std::size_t lhs = int_hash(seg.source.x);
+        std::size_t rhs = int_hash(seg.source.y);
+        lhs ^= rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2);
+        rhs = int_hash(seg.destination.x);
+        lhs ^= rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2);
+        rhs = int_hash(seg.destination.y);
+        lhs ^= rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2);
+        return lhs;
+    }
+};
+
+std::vector<Segment> alpha_shape(std::vector<cv::Point2f> points, float alpha);
+
 
 /// <summary>
-/// Проходит элементы shape добавляя их в конейнер.
+/// Р‘РёРЅР°СЂРёР·СѓРµС‚ РёР·РѕР±СЂР°Р¶РµРЅРёРµ
 /// </summary>
-/// <typeparam name="OutputIterator">
-/// Шдаблон итератора типа Output.
-/// </typeparam>
-/// <param name="A">
-/// Aplha shape.
-/// </param>
-/// <param name="out">
-/// Итератор контейнера, который нужно заполнить.
-/// </param>
-template <class OutputIterator>
-void alpha_edges(const Alpha_shape_2& A, OutputIterator out);
-
-/// <summary>
-/// Бинаризует изображение
-/// </summary>
-/// <param name="picture">Исходное изображение</param>
+/// <param name="picture">РСЃС…РѕРґРЅРѕРµ РёР·РѕР±СЂР°Р¶РµРЅРёРµ</param>
 void binarize(cv::Mat& picture);
 
 /// <summary>
-/// Находит контур лабиринта
+/// РќР°С…РѕРґРёС‚ РєРѕРЅС‚СѓСЂ Р»Р°Р±РёСЂРёРЅС‚Р°
 /// </summary>
-/// <param name="picture">Бинаризованное изображение</param>
-/// <returns>Вектор отрезков границы</returns>
+/// <param name="picture">Р‘РёРЅР°СЂРёР·РѕРІР°РЅРЅРѕРµ РёР·РѕР±СЂР°Р¶РµРЅРёРµ</param>
+/// <returns>Р’РµРєС‚РѕСЂ РѕС‚СЂРµР·РєРѕРІ РіСЂР°РЅРёС†С‹</returns>
 std::vector<Segment> get_boundary(const cv::Mat& picture);
+
