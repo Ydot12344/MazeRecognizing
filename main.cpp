@@ -1,47 +1,56 @@
 #include <iostream>
-#include "main.h"
 #include<vector>
+#include"main.h"
 #include"boundary.h"
 #include"line_recognizing.h"
-#include<array>
+#include "maze_solving.h"
+#include "maze.h"
 
-using namespace cv;
 
-cv::Mat solve(cv::Point start, cv::Point end, cv::Mat& img) {
+cv::Mat solve(cv::Point start, cv::Point end, const cv::Mat& img) {
 
-    Mat picture;
+    // Черно-белое изображение
+    cv::Mat gray_img;
+
+    // Применяем размытие для устранения мелких артефактов
     medianBlur(img, img, 3);
-    cvtColor(img, picture, cv::COLOR_RGB2GRAY);
-    Mat img_hsv;
-    cvtColor(img, img_hsv, COLOR_BGR2HSV);
+    cvtColor(img, gray_img, cv::COLOR_RGB2GRAY);
 
-    binarize(picture);
+    // Изображение в цветовой моделе - HSV
+    cv::Mat img_hsv;
+    cvtColor(img, img_hsv, cv::COLOR_BGR2HSV);
 
-    std::vector<Segment> boundary = get_boundary(picture);
+    Maze maze(img_hsv, gray_img, start, end);
 
-    Vec3b side_color = get_side_color(picture, img_hsv, boundary);
+    // Бинаризуем черно белое изображение
+    binarize(maze);
 
+    // Находим границу лабиринта
+    get_boundary(maze);
 
-    Vec3b floor_color = get_floor_color(start, picture, img_hsv);
+    // Поиск цвета стен и пола лабиринта
+    get_wall_color(maze);
+    get_floor_color(maze);
 
-    cv::Point start_line = find_line(img_hsv, picture, start, floor_color, side_color, 15000, 15000);
+    // Поиск начала и конца линии пользователя
+    find_line(maze);
+    if(maze.start_line != maze.start)
+        get_end_of_line(maze);
 
-    cv::Point end_line = get_end_of_line(start_line, img_hsv);
-
-    for (const auto& c : boundary) {
-        cv::line(picture, c.source, c.destination, { 0,255,0 }, 3);
+    // Отрисовка границы на черно-белом изображении
+    for (const auto& c : maze.boundary) {
+        cv::line(maze.grim, c.source, c.destination, {0, 255, 0 }, 3);
     }
 
 
-    std::vector<cv::Point> trace = GetTrace(end_line, end, img_hsv, picture);
+    // Поиск пути от конца линии до конца лабиринта
+    std::vector<cv::Point> trace = get_trace(maze);
 
-    for (int i = 0; i < trace.size() - 1; i++)
-        cv::line(img, trace[i], trace[i + 1], { 255,0,0 ,100}, 3);
+    std::reverse(trace.begin(), trace.end());
+
+    // Отрисовка подсказки на цветном изображении
+    for (int i = 0; i < std::min(500, (int)trace.size() - 1); i++)
+        cv::line(img, trace[i], trace[i + 1], { 255,0,0 ,100 }, 2);
 
     return img;
-}
-
-
-void myFlip(cv::Mat& input, cv::Mat& output){
-    cv::flip(input, output, 0);
 }
